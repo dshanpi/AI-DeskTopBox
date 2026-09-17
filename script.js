@@ -1,57 +1,76 @@
 const header = document.querySelector("[data-header]");
-const menuToggle = document.querySelector("[data-menu-toggle]");
-const nav = document.querySelector("[data-nav]");
-const dialog = document.querySelector("[data-video-dialog]");
+const menuButton = document.querySelector("[data-menu-toggle]");
+const navigation = document.querySelector("[data-nav]");
 
-const syncHeader = () => {
-  header?.classList.toggle("scrolled", window.scrollY > 16);
+const updateHeader = () => {
+  header?.classList.toggle("scrolled", window.scrollY > 12);
 };
 
-syncHeader();
-window.addEventListener("scroll", syncHeader, { passive: true });
-
 const closeMenu = () => {
-  nav?.classList.remove("open");
-  menuToggle?.setAttribute("aria-expanded", "false");
+  navigation?.classList.remove("open");
+  menuButton?.setAttribute("aria-expanded", "false");
+  menuButton?.setAttribute("aria-label", "打开导航");
   document.body.classList.remove("menu-open");
 };
 
-menuToggle?.addEventListener("click", () => {
-  const willOpen = menuToggle.getAttribute("aria-expanded") !== "true";
-  menuToggle.setAttribute("aria-expanded", String(willOpen));
-  nav?.classList.toggle("open", willOpen);
-  document.body.classList.toggle("menu-open", willOpen);
+updateHeader();
+window.addEventListener("scroll", updateHeader, { passive: true });
+
+menuButton?.addEventListener("click", () => {
+  const isOpening = menuButton.getAttribute("aria-expanded") !== "true";
+  menuButton.setAttribute("aria-expanded", String(isOpening));
+  menuButton.setAttribute("aria-label", isOpening ? "关闭导航" : "打开导航");
+  navigation?.classList.toggle("open", isOpening);
+  document.body.classList.toggle("menu-open", isOpening);
 });
 
-nav
+navigation
   ?.querySelectorAll("a")
   .forEach((link) => link.addEventListener("click", closeMenu));
+
 window.addEventListener("resize", () => {
-  if (window.innerWidth > 780) closeMenu();
+  if (window.innerWidth > 800) closeMenu();
 });
 
-const revealObserver = new IntersectionObserver(
-  (entries, observer) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add("is-visible");
-      observer.unobserve(entry.target);
+const tabs = Array.from(document.querySelectorAll("[data-evidence-tab]"));
+const panels = Array.from(document.querySelectorAll("[data-evidence-panel]"));
+
+const activateEvidence = (selectedTab, moveFocus = false) => {
+  const selectedValue = selectedTab.dataset.evidenceTab;
+
+  tabs.forEach((tab) => {
+    const isSelected = tab === selectedTab;
+    tab.classList.toggle("is-active", isSelected);
+    tab.setAttribute("aria-selected", String(isSelected));
+    tab.tabIndex = isSelected ? 0 : -1;
+  });
+
+  panels.forEach((panel) => {
+    const isSelected = panel.dataset.evidencePanel === selectedValue;
+    panel.classList.toggle("is-active", isSelected);
+    panel.hidden = !isSelected;
+  });
+
+  if (moveFocus) selectedTab.focus();
+};
+
+if (tabs.length > 0) {
+  activateEvidence(tabs.find((tab) => tab.classList.contains("is-active")) ?? tabs[0]);
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => activateEvidence(tab));
+    tab.addEventListener("keydown", (event) => {
+      if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"].includes(event.key)) {
+        return;
+      }
+
+      event.preventDefault();
+      let nextIndex = index;
+      if (["ArrowRight", "ArrowDown"].includes(event.key)) nextIndex = (index + 1) % tabs.length;
+      if (["ArrowLeft", "ArrowUp"].includes(event.key)) nextIndex = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === "Home") nextIndex = 0;
+      if (event.key === "End") nextIndex = tabs.length - 1;
+      activateEvidence(tabs[nextIndex], true);
     });
-  },
-  { threshold: 0.12, rootMargin: "0px 0px -40px" },
-);
-
-document
-  .querySelectorAll(".reveal")
-  .forEach((element) => revealObserver.observe(element));
-
-document.querySelector("[data-open-video]")?.addEventListener("click", () => {
-  if (typeof dialog?.showModal === "function") dialog.showModal();
-});
-
-document
-  .querySelector("[data-close-video]")
-  ?.addEventListener("click", () => dialog?.close());
-dialog?.addEventListener("click", (event) => {
-  if (event.target === dialog) dialog.close();
-});
+  });
+}
